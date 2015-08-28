@@ -7,6 +7,8 @@ import csv
 import pickle
 from time import sleep
 
+execfile("Downloader.py")
+
 SETTINGS_FILE = "config.pickle"
 
 def loadSettings(filename):
@@ -23,27 +25,6 @@ def loadSettings(filename):
 				'songs_path':'music/'}
 	return settings
 
-'''
-def loadSongs(filename):
-	try:
-		with open(filename, 'rb') as f:
-			songs = pickle.load(f)
-	except IOError:
-		print "Could not open songs file"
-		songs = []
-	return songs
-
-def findFile(path, filename):
-	return os.path.isfile(fname)
-
-def findSong(songs, songname, artistname):
-	for song in songs:
-		if song.name == songname and song.artist == artistname:
-			return song
-	else:
-		return None
-'''
-
 class Song:
 	def __init__(self, name, artist, album, filename, rate, codec):
 		self.name = name
@@ -55,7 +36,7 @@ class Song:
 
 def getSong():
 	songdict = pan.get_next_song()
-	print songdict
+	#print songdict
 	name = songdict['artistName'] + '-' + songdict['songName']
 	forbidden = "\n,.\t\"\'/?:|~"
 	newname = ''.join(l for l in name if l not in forbidden)
@@ -69,7 +50,7 @@ def getSong():
 	url = songdict['audioUrlMap']['highQuality']['audioUrl']
 	return (song, url)
 
-
+"""
 def updatePStatus():
         '''simply prints the status of the player on screen, not functionally required''' 
         try:
@@ -97,8 +78,7 @@ def updateDStatus():
                 print "[ Downloader ] : "+subsystemOut
 	except:
 		print "[ Downloader ] : error updating status"
-
-
+"""
 	
 pan = pandora.Pandora()
 settings = loadSettings(SETTINGS_FILE)
@@ -119,6 +99,7 @@ if pan.current_station is None:
 	print "That's not a staton, please try agagin"
 	sys.exit()
 
+'''
 playeropts = ["cvlc", "--intf=rc"] #--sout-display-audio , "--quiet"
 player = subprocess.Popen(playeropts, shell=False,
                                         stdout=subprocess.PIPE,
@@ -141,9 +122,10 @@ class CVLC():
 		pass
 	def close(self):
 		pass
-
+'''
 #songs = loadSongs(settings['songs_file'])		
 
+"""
 downloader = None
 def download(song, url, downloader):
 	#TODO kill the downloader status updater
@@ -173,25 +155,34 @@ def download(song, url, downloader):
 	#t_downloader.Daemon = True
 	#t_downloader.start()
 	print "downloader reset"
-	
+"""
+
+d = Downloader()	
+song,url = getSong()
+print 'enqueued new song',song.artist,',',song.name
+print url
+d.download(url, settings['songs_path']+song.filename, wait=True)
+p = Player( settings['songs_path']+song.filename )
+
+"""
 def playerAdd(filename):
 	sendPlayer('enqueue', filename)
 def sendPlayer(cmd, arg=''):
 	cmd = cmd+" "+arg+"\n"
 	player.stdin.write(cmd.encode("utf-8"))
+"""
 
-def enqueueNewSong(downloader):
+def enqueueNewSong(d):
 	song,url = getSong()
-	download(song,url,downloader)
-	playerAdd(settings['songs_path']+song.filename)
+	d.download(url, settings['songs_path']+song.filename, wait=False)
+	#playerAdd(settings['songs_path']+song.filename)
+	p.loadfile(settings['songs_path']+song.filename)
 	print 'enqueued new song',song.artist,',',song.name
 	print url
-	sleep(2)
-	sendPlayer('play')
+	#sendPlayer('play')
 	return
 
-downloader = None
-enqueueNewSong(downloader)
+#enqueueNewSong(d)
 '''
 newsong,url = getSong()
 arg = '--sout=file/mp3:'+settings['songs_path']+newsong.filename
@@ -227,7 +218,7 @@ if archivedSong is None:
 # on saving, copy to proper directory, without the order number
 # Check that the file doesn't already exist...
 # 
-
+"""
 def CheckPlayerStatus():
 	#TODO race conditions
 	#TODO will constantly update if song is paused less than 30
@@ -252,7 +243,7 @@ def CheckPlayerStatus():
 	time = getPlayerOut()
 	print 'stat: {} of {}'.format(time,length)
 	if int(length) - int(time) < 30:
-		enqueueNewSong(downloader)
+		enqueueNewSong(d)
 	
 	t_download = threading.Timer(30, CheckPlayerStatus)
 	
@@ -260,7 +251,7 @@ def CheckPlayerStatus():
 t_download = threading.Timer(.01, CheckPlayerStatus)
 t_download.Daemon = True
 t_download.start()
-
+"""
 print "enter vlc commands"
 try:
 	while True:
@@ -268,10 +259,13 @@ try:
 		raw = raw_input("> ")
 		if raw == "":
 			print "getting song"
-			enqueueNewSong(downloader)
+			enqueueNewSong(d)
+		elif raw == "p":
+				cmd = "p"
+				p.sendcmd(cmd)
 		else:
-			cmd = raw+"\n"
-			player.stdin.write(cmd.encode("utf-8"))
+			print "cmd: [{}]".format(raw)
+			p.sendcmd(raw+"\n")
 			#for line in player.stdin:
 			#	print line.readline().decode("utf-8")
 except KeyboardInterrupt as ex:
@@ -290,6 +284,7 @@ except IOError:
 	print 'could not savedata1 songs file'
 '''
 
+"""
 if player is not None:
 	os.kill(player.pid, 15)
 	player.wait()
@@ -301,6 +296,8 @@ if downloader is not None:
 	downloader = None
 	print 'downloader killed'
 #subprocess terminate
+"""
+p.close()
 pan.terminate()
 
 
