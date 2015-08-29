@@ -157,13 +157,6 @@ def download(song, url, downloader):
 	print "downloader reset"
 """
 
-d = Downloader()	
-song,url = getSong()
-print 'enqueued new song',song.artist,',',song.name
-print url
-d.download(url, settings['songs_path']+song.filename, wait=True)
-p = Player( settings['songs_path']+song.filename )
-
 """
 def playerAdd(filename):
 	sendPlayer('enqueue', filename)
@@ -172,15 +165,45 @@ def sendPlayer(cmd, arg=''):
 	player.stdin.write(cmd.encode("utf-8"))
 """
 
-def enqueueNewSong(d):
+d = Downloader()	
+song,url = getSong()
+if not os.access( settings['songs_path']+song.filename, os.R_OK):
+	d.download(url, settings['songs_path']+song.filename, wait=True)
+else:
+	print 'Song not downloaded, playing from memory'
+print 'enqueued new song',song.artist,',',song.name
+p = Player( settings['songs_path']+song.filename )
+
+
+
+def enqueueNewSong(d, wait=True):
 	song,url = getSong()
-	d.download(url, settings['songs_path']+song.filename, wait=False)
+	if not os.access( settings['songs_path']+song.filename, os.R_OK):
+		d.download(url, settings['songs_path']+song.filename, wait)
+	else: 
+		print 'Song not downloaded, playing from memory'
 	#playerAdd(settings['songs_path']+song.filename)
+
 	p.loadfile(settings['songs_path']+song.filename)
 	print 'enqueued new song',song.artist,',',song.name
-	print url
+	#print url
 	#sendPlayer('play')
 	return
+
+
+def checkplayer():
+	global t
+	if p.checkstatus():
+		enqueueNewSong(d)
+		t = threading.Timer(45, checkplayer)
+	else:
+		t = threading.Timer(30, checkplayer)
+	t.start()
+
+t = threading.Timer(30, checkplayer)
+t.start()
+
+
 
 #enqueueNewSong(d)
 '''
@@ -252,6 +275,8 @@ t_download = threading.Timer(.01, CheckPlayerStatus)
 t_download.Daemon = True
 t_download.start()
 """
+
+
 print "enter vlc commands"
 try:
 	while True:
@@ -260,16 +285,18 @@ try:
 		if raw == "":
 			print "getting song"
 			enqueueNewSong(d)
-		elif raw == "p":
-				cmd = "p"
-				p.sendcmd(cmd)
+		#elif raw == "p":
+		#		cmd = "p"
+		#		p.sendcmd(cmd)
 		else:
-			print "cmd: [{}]".format(raw)
-			p.sendcmd(raw+"\n")
+			p.sendcmd(raw)
 			#for line in player.stdin:
 			#	print line.readline().decode("utf-8")
-except KeyboardInterrupt as ex:
-	print ex.args
+#except KeyboardInterrupt as ex:
+except Exception as ex:
+	print type(ex), ex.args
+	print ex
+
 
 try:
 	with open(SETTINGS_FILE, 'wb+') as f:
@@ -297,7 +324,10 @@ if downloader is not None:
 	print 'downloader killed'
 #subprocess terminate
 """
+
+t.cancel()
 p.close()
-pan.terminate()
+d.close()
+#pan.terminate()
 
 
